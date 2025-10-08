@@ -1,0 +1,43 @@
+import pandas as pd
+import numpy as np
+import re
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+df = pd.read_csv("/kaggle/input/fake-jobs-posting-detection/fake_job_postings.csv")
+print("Shape:", df.shape)
+df.head()
+
+df = df.drop_duplicates()
+df = df.dropna(subset=['description']) 
+df = df.fillna('Unknown')
+
+stop_words = set(ENGLISH_STOP_WORDS) 
+
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'http\S+|www.\S+', '', text)
+    text = re.sub(r'[^a-z\s]', '', text)
+    words = [w for w in text.split() if w not in stop_words]
+    return " ".join(words)
+
+df['clean_description'] = df['description'].apply(clean_text)
+
+cat_cols = ['employment_type', 'required_experience', 'required_education',
+            'industry', 'function']
+
+for col in cat_cols:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+
+df['fraudulent'] = df['fraudulent'].astype(int)
+
+X = df[['clean_description'] + cat_cols]
+y = df['fraudulent']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+print("Train size:", X_train.shape, " Test size:", X_test.shape)
